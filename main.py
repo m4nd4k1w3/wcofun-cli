@@ -6,6 +6,53 @@ import time
 import re
 import argparse
 
+def download_episode(url, filename, directory, useragent, episode_number, episode_count):
+    print(f">> preparing to download {filename} from this link: {url}")
+    start_timer = time.time()
+    if download_video(url, f"{filename}.mp4", directory, useragent):
+        end_timer = time.time()
+        print(f">> {filename} downloaded successfully. {episode_number}/{episode_count} ({round(end_timer - start_timer, 2)} seconds)\n")
+        return True
+    else:
+        print(f">> error: {filename} failed to download. moving on...\n")
+        return False
+
+def process_season(season, season_links, directory, useragent, episode_titles):
+    episode_count = len(season_links)
+    print(f">> there are {episode_count} episodes in season {season}")
+
+    # Initial download of all episodes
+    for episode_number, (url, title) in enumerate(zip(season_links, episode_titles), start=1):
+        filename = f"S{season}E{episode_number:02d}"
+        if not os.path.exists(os.path.join(directory, f"{filename}.mp4")):
+            download_episode(url, filename, directory, useragent, episode_number, episode_count)
+
+    # Check for missing episodes after download
+    existing_files = os.listdir(directory)
+    existing_episodes = [int(file.split('E')[1].split('.')[0]) for file in existing_files if file.endswith('.mp4')]
+    existing_episodes.sort()
+
+    all_episodes = set(range(1, episode_count + 1))
+    missing_episodes = list(all_episodes - set(existing_episodes))
+    missing_episodes.sort()
+
+    if missing_episodes:
+        missing_episodes_formatted = [f"S{season}E{episode:02d}" for episode in missing_episodes]
+        print(f">> Found {len(missing_episodes)} missing episodes after download:")
+        print(f">> Missing episodes: {', '.join(missing_episodes_formatted)}")
+        download_missing = input(">>> Do you want to try downloading these missing episodes again? (y/n): ")
+        if download_missing.lower() == 'y':
+            for episode_number in missing_episodes:
+                filename = f"S{season}E{episode_number:02d}"
+                url = season_links[episode_number - 1]
+                download_episode(url, filename, directory, useragent, episode_number, episode_count)
+        else:
+            print(">> Skipping missing episodes...")
+    else:
+        print(">> All episodes downloaded successfully.")
+
+    return missing_episodes_formatted if missing_episodes else []
+
 def main():
     parser = argparse.ArgumentParser(description="Download episodes of a cartoon.")
     parser.add_argument("cartoon_url", help="URL of the cartoon to download")
@@ -49,6 +96,8 @@ def main():
         print(f">> error: starting season cannot be less than {min(available_seasons)}. Setting starting season value to {min(available_seasons)}...")
         start_season = min(available_seasons)
 
+    all_missing_episodes = []
+
     # loop through each season in the specified range
     for season in range(start_season, end_season + 1):
         if season not in available_seasons:
@@ -65,11 +114,6 @@ def main():
         if not os.path.exists(directory):
             print(f">> creating directory for season {season}")
             os.makedirs(directory)
-        else:
-            choose = input(f">>> there is a directory named 'S{season}'. would you want to overwrite it? (y/n): ")
-            if choose.lower() != "y":
-                print(">> skipping this season...")
-                continue
 
         print(">> fetching the episode links")
         if season == 1:
@@ -79,39 +123,20 @@ def main():
             season_pattern = re.compile(f'Season {season}')
         
         season_links = [link for link, title in zip(links, episode_titles) if season_pattern.search(title)]
-        episode_count = len(season_links)
-        print(f">> there are {episode_count} episodes in season {season}")
-
-        # scan the directory for existing episode files
-        existing_files = os.listdir(directory)
-        existing_episodes = [int(file.split('E')[1].split('.')[0]) for file in existing_files if file.endswith('.mp4')]
-        existing_episodes.sort()
+        season_episode_titles = [title for title in episode_titles if season_pattern.search(title)]
         
-        # determine the starting episode number
-        if existing_episodes:
-            start_episode = existing_episodes[-1] + 1
-            print(f">> resuming download from episode {start_episode}")
-        else:
-            start_episode = 1
-
-        # download remaining episodes
-        for i in range(start_episode - 1, len(season_links)):
-            episode_number = i + 1
-            filename = f"S{season}E{episode_number:02d}"
-            url = season_links[i]
-            
-            print(f">> preparing to download {filename} from this link: {url}")
-            start_timer = time.time()
-            if download_video(url, f"{filename}.mp4", directory, useragent):
-                end_timer = time.time()
-                print(f">> {filename} downloaded successfully. {episode_number}/{episode_count} ({round(end_timer - start_timer, 2)} seconds)\n")
-            else:
-                print(f">> error: {filename} failed to download. moving on...\n")
+        missing_episodes = process_season(season, season_links, directory, useragent, season_episode_titles)
+        all_missing_episodes.extend(missing_episodes)
 
         print(f"\n>> Season {season} downloaded successfully.\n")
 
+    if all_missing_episodes:
+        print(f">> missing episodes: {', '.join(all_missing_episodes)}")
+    else:
+        print(">> All episodes from all seasons downloaded successfully.")
+
     print("All desired seasons downloaded successfully.")
-    sys.exit(1)
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
