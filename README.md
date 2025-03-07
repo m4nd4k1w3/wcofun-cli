@@ -10,7 +10,7 @@ wcofun-cli is a tool to download cartoons from [WCOfun](https://www.wcofun.net/)
 - Requests
 - Selenium
 - Selenium-Wire
-- blinker==1.7.0
+- blinker
 
 ### Installation
 
