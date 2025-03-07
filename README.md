@@ -16,12 +16,12 @@ wcofun-cli is a tool to download cartoons from [WCOfun](https://www.wcofun.net/)
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/madman38/wcofun-cli.git
+    git clone https://github.com/m4nd4k1w3/wcofun-cli.git
     ```
 
 2. Install the required dependencies:
     ```sh
-    pip install requests selenium selenium-wire blinker==1.7.0
+    pip install requests selenium selenium-wire blinker
     ```
 
 3. Run the file:
